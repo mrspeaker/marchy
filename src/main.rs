@@ -81,7 +81,10 @@ fn setup(
         (xo * xo + yo * yo + zo * zo).sqrt()
     });
 
-    let mat = materials.add(StandardMaterial::default());
+    let mat = materials.add(StandardMaterial {
+        base_color: Color::linear_rgb(0.4, 0.4, 0.4),
+        ..default()
+    });
     let sphere = meshes.add(Sphere::default());
 
     vox.each(|x, y, z, val| {
@@ -142,7 +145,7 @@ fn add_axes(
     cmds.spawn((
         Mesh3d(meshes.add(Cuboid::default())),
         MeshMaterial3d(materials.add(StandardMaterial {
-            emissive: LinearRgba::rgb(0.0, 1.0, 0.0),
+            emissive: LinearRgba::rgb(1.0, 0.0, 0.0),
             ..default()
         })),
         Transform::from_xyz(0.0, 0.0, 0.0)
@@ -150,13 +153,19 @@ fn add_axes(
     ));
     cmds.spawn((
         Mesh3d(meshes.add(Cuboid::default())),
-        MeshMaterial3d(materials.add(StandardMaterial::default())),
+        MeshMaterial3d(materials.add(StandardMaterial {
+            emissive: LinearRgba::rgb(0.0, 0.3, 1.0),
+            ..default()
+        })),
         Transform::from_xyz(0.0, 0.0, 0.0)
             .with_scale(Vec3::new(w, w, 100.0))
     ));
     cmds.spawn((
         Mesh3d(meshes.add(Cuboid::default())),
-        MeshMaterial3d(materials.add(StandardMaterial::default())),
+        MeshMaterial3d(materials.add(StandardMaterial {
+            emissive: LinearRgba::rgb(0.0, 1.0, 0.0),
+            ..default()
+        })),
         Transform::from_xyz(0.0, 0.0, 0.0)
             .with_scale(Vec3::new(w, 100.0, w))
     ));
