@@ -39,6 +39,16 @@ impl VoxelGrid {
             self.data[i] = func(x, y, z, self.data[i]);
         }
     }
+
+    pub fn each<F>(&mut self, mut func: F)
+    where F: FnMut(u32, u32, u32, f32) -> () {
+        for i in 0..self.data.len() {
+            let z = (i as u32 / (self.size * self.size)) % self.size;
+            let y = (i as u32 / self.size) % self.size;
+            let x = i as u32 % self.size;
+            func(x, y, z, self.data[i]);
+        }
+    }
 }
 
 fn main() {
@@ -59,17 +69,35 @@ fn setup(
         random::<f32>() * 2.0 - 1.0
     });*/
     let size = vox.size as f32;
+    let hsize = size / 2.0;
     vox.map(|x, y, z, _val| {
-        let xo = x as f32 - size / 2.0;
-        let yo = y as f32 - size / 2.0;
-        let zo = z as f32 - size / 2.0;
+        let xo = x as f32 - hsize;
+        let yo = y as f32 - hsize;
+        let zo = z as f32 - hsize;
         (xo * xo + yo * yo + zo * zo).sqrt()
+    });
+
+    let mat = materials.add(StandardMaterial::default());
+    let sphere = meshes.add(Sphere::default());
+
+    vox.each(|x, y, z, val| {
+        let xo = x as f32 - hsize;
+        let yo = y as f32 - hsize;
+        let zo = z as f32 - hsize;
+
+        cmds.spawn((
+            MeshMaterial3d(mat.clone()),
+            Mesh3d(sphere.clone()),
+            Transform::from_xyz(xo, yo, zo)
+                .with_scale(Vec3::splat(0.1))
+        ));
     });
 
     cmds.spawn((
         Name::new("cam"),
         Camera3d::default(),
-        Transform::from_xyz(0.0, 0.0, 20.0)
+        Transform::from_xyz(1.5, 3.0, 20.0)
+            .looking_at(Vec3::new(0.0, 0.0, 0.0), Dir3::Y),
     ));
 
     cmds.insert_resource(AmbientLight {
@@ -136,9 +164,7 @@ fn spinner(
     }
 }
 
-#[rustfmt::skip]
 fn create_mesh(vox: &VoxelGrid) -> Mesh {
-
     let size = vox.size;
     let vol = size * size * size;
     let xo = -(size as f32 / 2.0);
