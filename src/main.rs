@@ -11,6 +11,10 @@ use rand::random;
 
 #[derive(Component)]
 struct Spin;
+#[derive(Component)]
+struct Cam {
+    r: f32
+}
 
 struct VoxelGrid {
     size: u32,
@@ -55,7 +59,7 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_systems(Startup, (setup,add_axes))
-        .add_systems(Update, spinner)
+        .add_systems(Update, (spinner, cam_follow))
         .run();
 }
 
@@ -96,8 +100,9 @@ fn setup(
     cmds.spawn((
         Name::new("cam"),
         Camera3d::default(),
-        Transform::from_xyz(1.5, 3.0, 20.0)
+        Transform::from_xyz(0.0, 3.0, 20.0)
             .looking_at(Vec3::new(0.0, 0.0, 0.0), Dir3::Y),
+        Cam { r: 20.0 }
     ));
 
     cmds.insert_resource(AmbientLight {
@@ -125,6 +130,7 @@ fn setup(
         MeshMaterial3d(materials.add(StandardMaterial::default())),
         Transform::from_xyz(0.0, 0.0, 0.0),
     ));
+
 }
 
 fn add_axes(
@@ -132,23 +138,27 @@ fn add_axes(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
+    let w = 0.01;
     cmds.spawn((
         Mesh3d(meshes.add(Cuboid::default())),
-        MeshMaterial3d(materials.add(StandardMaterial::default())),
-        Transform::from_xyz(-25.0, 0.0, 0.0)
-            .with_scale(Vec3::new(100.0, 0.1, 0.1))
-    ));
-    cmds.spawn((
-        Mesh3d(meshes.add(Cuboid::default())),
-        MeshMaterial3d(materials.add(StandardMaterial::default())),
-        Transform::from_xyz(0.0, 0.0, -50.0)
-            .with_scale(Vec3::new(0.1, 0.1, 100.0))
+        MeshMaterial3d(materials.add(StandardMaterial {
+            emissive: LinearRgba::rgb(0.0, 1.0, 0.0),
+            ..default()
+        })),
+        Transform::from_xyz(0.0, 0.0, 0.0)
+            .with_scale(Vec3::new(100.0, w, w))
     ));
     cmds.spawn((
         Mesh3d(meshes.add(Cuboid::default())),
         MeshMaterial3d(materials.add(StandardMaterial::default())),
         Transform::from_xyz(0.0, 0.0, 0.0)
-            .with_scale(Vec3::new(0.1, 100.0, 0.1))
+            .with_scale(Vec3::new(w, w, 100.0))
+    ));
+    cmds.spawn((
+        Mesh3d(meshes.add(Cuboid::default())),
+        MeshMaterial3d(materials.add(StandardMaterial::default())),
+        Transform::from_xyz(0.0, 0.0, 0.0)
+            .with_scale(Vec3::new(w, 100.0, w))
     ));
 }
 
@@ -245,4 +255,17 @@ fn create_mesh(vox: &VoxelGrid) -> Mesh {
 
     mesh.compute_normals();
     mesh
+}
+
+fn cam_follow(
+    mut cams: Query<(&mut Transform, &Cam)>,
+    time: Res<Time>
+) {
+    let elapsed = time.elapsed_secs() * 0.1;
+    for (mut t, cam) in cams.iter_mut() {
+        t.translation.x = elapsed.sin() * cam.r;
+        t.translation.z = elapsed.cos() * cam.r;
+        t.translation.y = elapsed.sin() * 5.0;
+        t.look_at(Vec3::new(0.0, 0.0, 0.0), Dir3::Y);
+    }
 }
