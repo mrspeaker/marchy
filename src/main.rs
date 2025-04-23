@@ -63,7 +63,7 @@ fn main() {
     App::new()
         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
         .add_systems(Startup, (setup,add_axes))
-        .add_systems(Update, (spinner, cam_follow))
+        .add_systems(Update, (spinner, cam_follow, collides))
         .add_observer(ball_spawn)
         .run();
 }
@@ -142,6 +142,7 @@ fn setup(
         Collider::trimesh_from_mesh(&mesh).unwrap(),
         Transform::from_xyz(0.0, 0.0, 0.0),
         Mesh3d(meshes.add(mesh)),
+        CollidingEntities::default()
     ));
 
     for pos in [
@@ -172,6 +173,17 @@ fn setup(
             ),
             ptype: 0
         });
+    }
+}
+
+
+fn collides(query: Query<(Entity, &CollidingEntities)>) {
+    for (entity, colliding_entities) in &query {
+        /*println!(
+            "{} is colliding with the following entities: {:?}",
+            entity,
+            colliding_entities,
+        );*/
     }
 }
 
