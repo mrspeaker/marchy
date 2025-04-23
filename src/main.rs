@@ -1,7 +1,7 @@
 use bevy::{
     prelude::*,
     render::{
-        mesh::VertexAttributeValues,
+        mesh::{Indices, VertexAttributeValues},
         render_asset::RenderAssetUsages,
         render_resource::PrimitiveTopology,
     },
@@ -61,10 +61,10 @@ impl VoxelGrid {
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
-//        .add_plugins(PhysicsPlugins::default())
+        .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
         .add_systems(Startup, (setup,add_axes))
         .add_systems(Update, (spinner, cam_follow))
+        .add_observer(ball_spawn)
         .run();
 }
 
@@ -132,13 +132,33 @@ fn setup(
             ..default()
         },
     ));
-/*
+
+    let mesh = create_mesh(&vox);
     cmds.spawn((
-        Mesh3d(meshes.add(create_mesh(&vox))),
         MeshMaterial3d(materials.add(StandardMaterial::default())),
+        RigidBody::Static,
+        Collider::trimesh_from_mesh(&mesh).unwrap(),
         Transform::from_xyz(0.0, 0.0, 0.0),
+        Mesh3d(meshes.add(mesh)),
     ));
-*/
+
+    cmds.spawn((
+        RigidBody::Static,
+        Collider::cylinder(10.0, 0.1),
+        Mesh3d(meshes.add(Cylinder::new(20.0, 0.1))),
+        MeshMaterial3d(materials.add(Color::BLACK)),
+        Transform::from_xyz(0.0, -5.0, 0.0),
+    ));
+
+    for _ in 0..30 {
+        cmds.trigger(BallSpawn {
+            pos: Vec3::new(
+               random::<f32>() * 10.0 - 5.0,
+               random::<f32>() * 5.0 + 15.0,
+               random::<f32>() * 10.0 - 5.0,
+            )
+        });
+    }
 }
 
 fn add_axes(
@@ -258,6 +278,8 @@ fn create_mesh(vox: &VoxelGrid) -> Mesh {
         verts.push([x, y - 1.0, z - 1.0]);
     }
 
+    let len = verts.len();
+
     let mut mesh = Mesh::new(
         PrimitiveTopology::TriangleList,
         RenderAssetUsages::MAIN_WORLD | RenderAssetUsages::RENDER_WORLD
@@ -265,7 +287,9 @@ fn create_mesh(vox: &VoxelGrid) -> Mesh {
     .with_inserted_attribute(
         Mesh::ATTRIBUTE_POSITION,
         VertexAttributeValues::Float32x3(verts)
-    );
+    )
+    // TODO: reusue verts, hey...
+    .with_inserted_indices(Indices::U32((0..=len as u32).collect()));
 
     mesh.compute_normals();
     mesh
@@ -282,4 +306,27 @@ fn cam_follow(
         t.translation.y = elapsed.sin() * 5.0;
         t.look_at(Vec3::new(0.0, 0.0, 0.0), Dir3::Y);
     }
+}
+
+#[derive(Debug, Event)]
+struct BallSpawn {
+    pos: Vec3,
+}
+
+fn ball_spawn(
+    trigger: Trigger<BallSpawn>,
+    mut cmds: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let pos = trigger.event().pos;
+    cmds.spawn((
+        RigidBody::Dynamic,
+        Collider::sphere(0.5),
+        Restitution::new(0.8)
+            .with_combine_rule(CoefficientCombine::Max),
+        Mesh3d(meshes.add(Sphere::new(0.5))),
+        MeshMaterial3d(materials.add(Color::WHITE)),
+        Transform::from_translation(pos),
+    ));
 }
