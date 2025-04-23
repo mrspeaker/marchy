@@ -8,6 +8,7 @@ use bevy::{
 };
 use std::f32::consts::{ PI, TAU };
 use rand::random;
+use avian3d::prelude::*;
 
 #[derive(Component)]
 struct Spin;
@@ -30,26 +31,29 @@ impl VoxelGrid {
     }
 
     pub fn read(&self, x: u32, y: u32, z: u32) -> f32 {
-        let idx = z * self.size * self.size + y * self.size + x;
+        let size = self.size;
+        let idx = z * size * size + y * size + x;
         self.data[idx as usize]
     }
 
     pub fn map<F>(&mut self, mut func: F)
     where F: FnMut(u32, u32, u32, f32) -> f32 {
+        let size = self.size;
         for i in 0..self.data.len() {
-            let z = (i as u32 / (self.size * self.size)) % self.size;
-            let y = (i as u32 / self.size) % self.size;
-            let x = i as u32 % self.size;
+            let z = (i as u32 / (size * size)) % size;
+            let y = (i as u32 / size) % size;
+            let x = i as u32 % size;
             self.data[i] = func(x, y, z, self.data[i]);
         }
     }
 
     pub fn each<F>(&mut self, mut func: F)
     where F: FnMut(u32, u32, u32, f32) -> () {
+        let size = self.size;
         for i in 0..self.data.len() {
-            let z = (i as u32 / (self.size * self.size)) % self.size;
-            let y = (i as u32 / self.size) % self.size;
-            let x = i as u32 % self.size;
+            let z = (i as u32 / (size * size)) % size;
+            let y = (i as u32 / size) % size;
+            let x = i as u32 % size;
             func(x, y, z, self.data[i]);
         }
     }
@@ -58,6 +62,7 @@ impl VoxelGrid {
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
+//        .add_plugins(PhysicsPlugins::default())
         .add_systems(Startup, (setup,add_axes))
         .add_systems(Update, (spinner, cam_follow))
         .run();
@@ -69,9 +74,6 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     let mut vox = VoxelGrid::new(10);
-    /*vox.map(|_x, _y, _z, _val| {
-        random::<f32>() * 2.0 - 1.0
-    });*/
     let size = vox.size as f32;
     let hsize = size / 2.0;
     vox.map(|x, y, z, _val| {
@@ -82,7 +84,11 @@ fn setup(
     });
 
     let mat = materials.add(StandardMaterial {
-        base_color: Color::linear_rgb(0.4, 0.4, 0.4),
+        base_color: Color::linear_rgb(1.0, 0.5, 0.5),
+        ..default()
+    });
+    let mat_off = materials.add(StandardMaterial {
+        base_color: Color::linear_rgb(0.4, 0.8, 0.8),
         ..default()
     });
     let sphere = meshes.add(Sphere::default());
@@ -93,7 +99,7 @@ fn setup(
         let zo = z as f32 - hsize;
 
         cmds.spawn((
-            MeshMaterial3d(mat.clone()),
+            MeshMaterial3d(if val < 5.0 { mat.clone() } else { mat_off.clone() }),
             Mesh3d(sphere.clone()),
             Transform::from_xyz(xo, yo, zo)
                 .with_scale(Vec3::splat(0.1))
@@ -125,15 +131,14 @@ fn setup(
             rotation: Quat::from_rotation_x(-PI / 4.),
             ..default()
         },
-
     ));
-
+/*
     cmds.spawn((
         Mesh3d(meshes.add(create_mesh(&vox))),
         MeshMaterial3d(materials.add(StandardMaterial::default())),
         Transform::from_xyz(0.0, 0.0, 0.0),
     ));
-
+*/
 }
 
 fn add_axes(
@@ -205,52 +210,52 @@ fn create_mesh(vox: &VoxelGrid) -> Mesh {
         let z = ((i / (size * size)) % size) as f32 + zo;
 
         // Front
-        verts.push([x, y + 1.0, z]);
+        verts.push([x - 1.0, y, z]);
+        verts.push([x - 1.0, y - 1.0, z]);
+        verts.push([x, y - 1.0, z]);
+        verts.push([x - 1.0, y, z]);
+        verts.push([x, y - 1.0, z]);
         verts.push([x, y, z]);
-        verts.push([x + 1.0, y, z]);
-        verts.push([x, y + 1.0, z]);
-        verts.push([x + 1.0, y, z]);
-        verts.push([x + 1.0, y + 1.0, z]);
 
         // Back
-        verts.push([x + 1.0, y + 1.0, z - 1.0]);
-        verts.push([x + 1.0, y, z - 1.0]);
         verts.push([x, y, z - 1.0]);
-        verts.push([x + 1.0, y + 1.0, z - 1.0]);
+        verts.push([x, y - 1.0, z - 1.0]);
+        verts.push([x - 1.0, y - 1.0, z - 1.0]);
         verts.push([x, y, z - 1.0]);
-        verts.push([x, y + 1.0, z - 1.0]);
+        verts.push([x - 1.0, y - 1.0, z - 1.0]);
+        verts.push([x - 1.0, y, z - 1.0]);
 
         // Top
-        verts.push([x, y + 1.0, z]);
-        verts.push([x + 1.0, y + 1.0, z]);
-        verts.push([x + 1.0, y + 1.0, z - 1.0]);
-        verts.push([x, y + 1.0, z]);
-        verts.push([x + 1.0, y + 1.0, z - 1.0]);
-        verts.push([x, y + 1.0, z - 1.0]);
+        verts.push([x - 1.0, y, z]);
+        verts.push([x, y, z]);
+        verts.push([x, y, z - 1.0]);
+        verts.push([x - 1.0, y, z]);
+        verts.push([x, y, z - 1.0]);
+        verts.push([x - 1.0, y, z - 1.0]);
 
         // Bottom
-        verts.push([x + 1.0, y, z - 1.0]);
-        verts.push([x + 1.0, y, z]);
-        verts.push([x, y, z]);
-        verts.push([x + 1.0, y, z - 1.0]);
-        verts.push([x, y, z]);
         verts.push([x, y, z - 1.0]);
+        verts.push([x, y, z]);
+        verts.push([x - 1.0, y - 1.0, z]);
+        verts.push([x, y - 1.0, z - 1.0]);
+        verts.push([x - 1.0, y - 1.0, z]);
+        verts.push([x - 1.0, y - 1.0, z - 1.0]);
 
         // Left
-        verts.push([x, y + 1.0, z - 1.0]);
-        verts.push([x, y, z - 1.0]);
-        verts.push([x, y, z]);
-        verts.push([x, y + 1.0, z - 1.0]);
-        verts.push([x, y, z]);
-        verts.push([x, y + 1.0, z]);
+        verts.push([x - 1.0, y, z - 1.0]);
+        verts.push([x - 1.0, y - 1.0, z - 1.0]);
+        verts.push([x - 1.0, y - 1.0, z]);
+        verts.push([x - 1.0, y, z - 1.0]);
+        verts.push([x - 1.0, y - 1.0, z]);
+        verts.push([x - 1.0, y, z]);
 
         // Right
-        verts.push([x + 1.0, y + 1.0, z]);
-        verts.push([x + 1.0, y, z - 1.0]);
-        verts.push([x + 1.0, y + 1.0, z - 1.0]);
-        verts.push([x + 1.0, y + 1.0, z]);
-        verts.push([x + 1.0, y, z]);
-        verts.push([x + 1.0, y, z - 1.0]);
+        verts.push([x, y, z]);
+        verts.push([x, y - 1.0, z - 1.0]);
+        verts.push([x, y, z - 1.0]);
+        verts.push([x, y, z]);
+        verts.push([x, y - 1.0, z]);
+        verts.push([x, y - 1.0, z - 1.0]);
     }
 
     let mut mesh = Mesh::new(
