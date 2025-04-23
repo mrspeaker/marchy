@@ -78,7 +78,7 @@ fn setup(
     let hsize = size / 2.0;
     vox.map(|x, y, z, _val| {
         let xo = x as f32 - hsize;
-        let yo = y as f32 - hsize;
+        let yo = y as f32;
         let zo = z as f32 - hsize;
         (xo * xo + yo * yo + zo * zo).sqrt()
     });
@@ -133,7 +133,9 @@ fn setup(
         },
     ));
 
-    let mesh = create_mesh(&vox);
+    // let limit = random::<f32>() * 4.0;
+    let limit = 5.0;
+    let mesh = create_mesh(&vox, limit);
     cmds.spawn((
         MeshMaterial3d(materials.add(StandardMaterial::default())),
         RigidBody::Static,
@@ -141,6 +143,17 @@ fn setup(
         Transform::from_xyz(0.0, 0.0, 0.0),
         Mesh3d(meshes.add(mesh)),
     ));
+
+    for pos in [
+        [-2.5, -0.5, -0.5],
+        [-2.5, -0.5, -1.5],
+        [-3.5, -2.5, 2.5]
+    ] {
+        cmds.trigger(BallSpawn {
+            pos: Vec3::new(pos[0], pos[1], pos[2]),
+            ptype: 1
+        });
+    }
 
     cmds.spawn((
         RigidBody::Static,
@@ -154,9 +167,10 @@ fn setup(
         cmds.trigger(BallSpawn {
             pos: Vec3::new(
                random::<f32>() * 10.0 - 5.0,
-               random::<f32>() * 5.0 + 15.0,
+               random::<f32>() * 2.0 + 2.0,
                random::<f32>() * 10.0 - 5.0,
-            )
+            ),
+            ptype: 0
         });
     }
 }
@@ -208,7 +222,7 @@ fn spinner(
     }
 }
 
-fn create_mesh(vox: &VoxelGrid) -> Mesh {
+fn create_mesh(vox: &VoxelGrid, limit: f32) -> Mesh {
     let size = vox.size;
     let vol = size * size * size;
     let xo = -(size as f32 / 2.0);
@@ -216,8 +230,6 @@ fn create_mesh(vox: &VoxelGrid) -> Mesh {
     let zo = xo;
 
     let mut verts: Vec<[f32; 3]> = vec![];
-
-    let limit = random::<f32>() * 5.0 + 2.0;
 
     for i in 0..vol {
         let val = vox.data[i as usize];
@@ -311,6 +323,7 @@ fn cam_follow(
 #[derive(Debug, Event)]
 struct BallSpawn {
     pos: Vec3,
+    ptype: u32,
 }
 
 fn ball_spawn(
@@ -320,8 +333,10 @@ fn ball_spawn(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     let pos = trigger.event().pos;
+    let ptype = trigger.event().ptype;
+
     cmds.spawn((
-        RigidBody::Dynamic,
+        if ptype == 0 { RigidBody::Dynamic } else { RigidBody::Static },
         Collider::sphere(0.5),
         Restitution::new(0.8)
             .with_combine_rule(CoefficientCombine::Max),
