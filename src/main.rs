@@ -11,6 +11,13 @@ use rand::random;
 use avian3d::prelude::*;
 
 #[derive(Component)]
+struct Phys {
+    pos: Vec2,
+    acc: f32,
+    max_acc: f32,
+}
+
+#[derive(Component)]
 struct Spin;
 #[derive(Component)]
 struct Cam {
